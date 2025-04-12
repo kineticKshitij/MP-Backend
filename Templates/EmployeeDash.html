@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+
+        .container {
+            width: 600px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .dashboard-link {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background 0.3s ease;
+        }
+
+        .dashboard-link:hover {
+            background: #2980b9;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background: #c0392b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome, <span id="employee-name"></span>!</h1>
+        <div>
+            <a href="#" class="dashboard-link">View Profile</a>
+            <a href="#" class="dashboard-link">Attendance Log</a>
+            <a href="#" class="dashboard-link">Request Leave</a>
+            <a href="#" class="dashboard-link">Download Documents</a>
+            <a href="#" class="dashboard-link">Contact HR</a>
+        </div>
+        <button id="logout-button">Logout</button>
+    </div>
+
+    <script>
+        // Get name from query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const name = urlParams.get('name');
+        const nameSpan = document.getElementById("employee-name");
+        nameSpan.textContent = name || "Employee";
+
+        // Logout button event
+        document.getElementById("logout-button").addEventListener("click", () => {
+            window.location.href = "login.html"; // Redirect to login
+        });
+    </script>
+</body>
+</html>

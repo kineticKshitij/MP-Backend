@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Attendance Module Connection Detector</title>
+    <style>
+      body {
+        font-family: "Poppins", sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        overflow: hidden;
+        background: linear-gradient(135deg, #121212, #1a1a1a);
+        animation: bgFade 6s infinite alternate ease-in-out;
+      }
+
+      @keyframes bgFade {
+        0% {
+          background: linear-gradient(135deg, #121212, #1a1a1a);
+        }
+        50% {
+          background: linear-gradient(135deg, #222, #333);
+        }
+        100% {
+          background: linear-gradient(135deg, #121212, #1a1a1a);
+        }
+      }
+
+      /* Video background styling */
+      video#bgVideo {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: -1;
+        filter: brightness(50%);
+        animation: zoomIn 10s infinite alternate ease-in-out;
+      }
+
+      @keyframes zoomIn {
+        0% {
+          transform: scale(1);
+        }
+        100% {
+          transform: scale(1.2);
+        }
+      }
+
+      /* Content styling */
+      h1 {
+        color: #a3bf34;
+        font-size: 2.5rem;
+        text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7);
+        animation: fadeIn 2s ease-in-out;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      button {
+        padding: 15px 40px;
+        font-size: 1.2rem;
+        cursor: pointer;
+        background: linear-gradient(45deg, #00aaff, #005f99);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        margin: 20px;
+        transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        animation: popUp 1s ease-out;
+      }
+
+      @keyframes popUp {
+        from {
+          opacity: 0;
+          transform: scale(0.8);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      button:hover {
+        background: linear-gradient(45deg, #0088cc, #003f6b);
+        transform: scale(1.1);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
+      }
+
+      button:active {
+        background: linear-gradient(45deg, #0066aa, #002f55);
+        transform: scale(0.95);
+      }
+
+      #status {
+        margin-top: 20px;
+        font-size: 1.1rem;
+        color: #4f5f9b;
+        animation: fadeIn 2s ease-in-out;
+      }
+
+      #status.success {
+        color: green;
+        animation: pulse 2s infinite alternate ease-in-out;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        100% {
+          transform: scale(1.1);
+        }
+      }
+
+      #status.error {
+        color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Video background -->
+    <video id="bgVideo" autoplay muted loop>
+      <source src="/background.mp4" type="video/mp4" />
+      Your browser does not support the video tag.
+    </video>
+
+    <h1>Attendance Module Connection Detector</h1>
+    <button id="connectButton">Connect to Arduino</button>
+    <div id="status">Status: Not connected</div>
+
+    <script>
+      const connectButton = document.getElementById("connectButton");
+      const statusDiv = document.getElementById("status");
+
+      async function connectArduino() {
+        try {
+          // Prompt user to select a port.
+          const port = await navigator.serial.requestPort();
+
+          // Wait for the port to open.
+          await port.open({ baudRate: 9600 });
+
+          statusDiv.textContent = "Status: Arduino connected";
+          statusDiv.className = "success";
+
+          // Redirect to dashboard after 3 seconds
+          setTimeout(function () {
+            window.location.href = "/Operation";
+          }, 3000);
+
+          // Optionally read data from Arduino
+          const reader = port.readable.getReader();
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) {
+              break; // Exit loop if done
+            }
+            console.log("Data from Arduino: ", new TextDecoder().decode(value));
+          }
+
+          reader.releaseLock();
+        } catch (error) {
+          statusDiv.textContent = "Status: Failed to connect";
+          statusDiv.className = "error";
+          console.error("Error: ", error);
+        }
+      }
+
+      connectButton.addEventListener("click", connectArduino);
+    </script>
+  </body>
+</html>

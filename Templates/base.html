@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% endblock title %} | Cyber Experts</title>
+    <style>
+        /* General Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Smooth Scroll and Animations */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        /* Navbar Styles */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(to right, #333, #444);
+            color: white;
+            z-index: 1000;
+            padding: 10px 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease;
+        }
+
+        nav.hidden {
+            transform: translateY(-100%);
+        }
+
+        .navbar-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-brand {
+            font-size: 26px;
+            font-weight: bold;
+            color: white;
+            text-decoration: none;
+            text-transform: uppercase;
+        }
+
+        .navbar-toggle {
+            display: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: white;
+        }
+
+        .navbar-nav {
+            display: flex;
+            list-style: none;
+            margin: 0;
+        }
+
+        .navbar-nav li {
+            margin-left: 20px;
+        }
+
+        .navbar-nav a {
+            color: white;
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+
+        .navbar-nav a:hover {
+            background-color: #575757;
+            transform: scale(1.1);
+        }
+
+        .navbar-nav .active {
+            background-color: #0088cc;
+        }
+
+        @media (max-width: 768px) {
+            .navbar-nav {
+                display: none;
+                flex-direction: column;
+                width: 100%;
+                background-color: #333;
+                position: absolute;
+                top: 50px;
+                left: 0;
+            }
+
+            .navbar-nav.show {
+                display: flex;
+            }
+
+            .navbar-toggle {
+                display: block;
+            }
+        }
+
+        /* Chatbot Styles */
+        .chatbot-icon {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(to right, #0088cc, #005f8a);
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+
+        .chatbot {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            background: #333;
+            border-radius: 10px;
+            color: white;
+            display: none;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .chatbot-header {
+            background: linear-gradient(to right, #0088cc, #005f8a);
+            padding: 10px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .chatbot-body {
+            padding: 10px;
+        }
+
+        .messages {
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+
+        .message {
+            margin: 5px;
+            padding: 8px;
+            border-radius: 5px;
+        }
+
+        .bot-message {
+            background-color: #555;
+            color: white;
+            align-self: flex-start;
+        }
+
+        .user-message {
+            background-color: #0088cc;
+            color: white;
+            align-self: flex-end;
+        }
+
+        input[type="text"] {
+            width: calc(100% - 20px);
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #0088cc;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0077b3;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav id="navbar">
+        <div class="navbar-container">
+            <a href="/home" class="navbar-brand">Cyber Experts</a>
+            <span class="navbar-toggle" onclick="toggleNavbar()">☰</span>
+            <ul class="navbar-nav" id="navbarNav">
+                <li><a href="/home" class="{% if request.path == '/home' %}active{% endif %}">Home</a></li>
+                <li><a href="/aboutus" class="{% if request.path == '/aboutus' %}active{% endif %}">About Us</a></li>
+                <li><a href="/services" class="{% if request.path == '/services' %}active{% endif %}">Services</a></li>
+                <li><a href="/ContactUs" class="{% if request.path == '/ContactUs' %}active{% endif %}">Contact Us</a></li>
+                <li><a href="/admin" class="{% if request.path == '/admin' %}active{% endif %}">Admin</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Chatbot Icon -->
+    <div class="chatbot-icon" onclick="toggleChatbot()">💬</div>
+
+    <!-- Chatbot -->
+    <div id="chatbot" class="chatbot">
+        <div class="chatbot-header" onclick="toggleChatbot()">Chat with us!</div>
+        <div class="chatbot-body">
+            <div class="messages" id="chat-log"></div>
+            <input type="text" id="user-input" placeholder="Type your message..." />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <!-- Page Content -->
+    <div class="content">
+        {% block body %}{% endblock body %}
+    </div>
+
+    <script>
+        function toggleNavbar() {
+            document.getElementById("navbarNav").classList.toggle("show");
+        }
+
+        function toggleChatbot() {
+            const chatbot = document.getElementById("chatbot");
+            chatbot.style.display = chatbot.style.display === "none" || !chatbot.style.display ? "block" : "none";
+        }
+
+        async function sendMessage() {
+            const inputField = document.getElementById("user-input");
+            const message = inputField.value.trim();
+
+            if (message) {
+                const chatLog = document.getElementById("chat-log");
+
+                // Display user message
+                const userMessage = `<div class="message user-message">${message}</div>`;
+                chatLog.innerHTML += userMessage;
+                inputField.value = "";
+
+                try {
+                    // Send POST request to Django backend
+                    const response = await fetch('/chat-response', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}' // Django CSRF token for security
+                        },
+                        body: JSON.stringify({ query: message })
+                    });
+
+                    const data = await response.json();
+
+                    // Display bot response
+                    const botMessage = `<div class="message bot-message">${data.response}</div>`;
+                    chatLog.innerHTML += botMessage;
+
+                } catch (error) {
+                    // Handle errors
+                    const errorMessage = `<div class="message bot-message">An error occurred. Please try again later.</div>`;
+                    chatLog.innerHTML += errorMessage;
+                }
+
+                // Scroll to the latest message
+                chatLog.scrollTop = chatLog.scrollHeight;
+            }
+        }
+    </script>
+</body>
+</html>

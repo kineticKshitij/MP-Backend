@@ -1,0 +1,270 @@
+    {% extends "base.html" %}
+
+    {% block title %}Manage Employee{% endblock title %}
+
+    {% block body %}
+    <body>
+        <h1 class="title">Employees in {{ org_name }}</h1>
+
+        {% if employees %}
+            <table class="employee-table">
+                <thead>
+                    <tr class="table-header">
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Unique ID</th>
+                        <th>Date Joined</th>
+                        <th>Employee Photo</th>
+                        <th>Employee Card</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for employee in employees %}
+                        <tr class="table-row">
+                            <td>{{ employee.name }}</td>
+                            <td>{{ employee.email }}</td>
+                            <td>{{ employee.unique_id }}</td>
+                            <td>{{ employee.date_joined }}</td>
+                            <td>
+                                {% if employee.photo %}
+                                    <img src="{{ employee.photo.url }}" alt="Employee Photo" 
+                                        class="employee-photo" 
+                                        onclick="enlargePhoto('{{ employee.photo.url }}')">
+                                {% else %}
+                                    <span>No Photo</span>
+                                    <button onclick="showCard('{{ employee.unique_id }}', '{{ employee.name }}', '{{ employee.email }}')" class="upload-photo-btn">
+                                        Upload Photo
+                                    </button>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button onclick="showCard('{{ employee.unique_id }}', '{{ employee.name }}', '{{ employee.email }}')" class="show-card-btn">
+                                    Show Card
+                                </button>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="no-employees">No employees found for organization {{ org_name }}.</p>
+        {% endif %}
+
+        <!-- Mini Screen for RFID Card -->
+        <div id="rfidCardMiniScreen" class="rfid-card-mini-screen">
+            <h2>RFID Card</h2>
+            <p><strong>Organization:</strong> {{ org_name }}</p>
+            <p><strong>Name:</strong> <span id="miniEmployeeName"></span></p>
+            <p><strong>Email:</strong> <span id="miniEmployeeEmail"></span></p>
+            <p><strong>Photo:</strong></p>
+            <img id="miniEmployeePhoto" src="" alt="Employee Photo" class="mini-employee-photo">
+            <form id="uploadPhotoForm">
+                <input type="file" id="photoUpload" accept="image/*" class="photo-upload-input">
+                <button type="button" onclick="uploadPhoto()" class="upload-photo-btn">
+                    Upload Photo
+                </button>
+            </form>
+            <button id="generateCardButton" class="generate-card-btn" style="display: none;" onclick="generateCard()">Generate Card</button>
+            <button onclick="closeMiniScreen()" class="close-btn">Close</button>
+        </div>
+
+        <div id="overlay" class="overlay"></div>
+
+        <!-- Modal for Enlarged Photo -->
+        <div id="photoModal" class="photo-modal">
+            <span onclick="closePhotoModal()" class="close-modal-btn">&times;</span>
+            <img id="enlargedPhoto" src="" alt="Enlarged Photo" class="enlarged-photo">
+        </div>
+
+        <style>
+            .title {
+                text-align: center;
+                margin-top: 20px;
+            }
+
+            .employee-table {
+                width: 90%;
+                margin: 20px auto;
+                border-collapse: collapse;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            }
+
+            .table-header {
+                background-color: #007acc;
+                color: white;
+                text-align: left;
+            }
+
+            .table-row {
+                background-color: #f9f9f9;
+            }
+
+            .employee-photo {
+                width: 50px;
+                height: 50px;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+
+            .upload-photo-btn, .show-card-btn {
+                padding: 5px 10px;
+                background-color: #007acc;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+
+            .upload-photo-btn {
+                background-color: #00b300;
+            }
+
+            .show-card-btn {
+                background-color: #007acc;
+            }
+
+            .rfid-card-mini-screen {
+                display: none;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 320px;
+                background: white;
+                border-radius: 10px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                padding: 20px;
+                z-index: 1000;
+                animation: fadeIn 0.5s;
+            }
+
+            .mini-employee-photo {
+                width: 100%;
+                height: auto;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                margin-bottom: 10px;
+            }
+
+            .photo-upload-input {
+                margin-bottom: 10px;
+                width: 100%;
+                padding: 5px;
+            }
+
+            .generate-card-btn {
+                width: 100%;
+                cursor: pointer;
+                transition: background-color 0.3s;
+            }
+
+            .close-btn {
+                padding: 10px;
+                background-color: #ff3333;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                width: 100%;
+                cursor: pointer;
+                transition: background-color 0.3s;
+            }
+
+            .overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.6);
+                z-index: 999;
+            }
+
+            .photo-modal {
+                display: none;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                border-radius: 10px;
+                padding: 20px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                z-index: 1000;
+            }
+
+            .close-modal-btn {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                font-size: 20px;
+                color: red;
+                cursor: pointer;
+            }
+
+            .enlarged-photo {
+                width: 100%;
+                height: auto;
+            }
+
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(-20px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+        </style>
+    </body>
+
+    <script>
+        function enlargePhoto(photoUrl) {
+            document.getElementById('enlargedPhoto').src = photoUrl;
+            document.getElementById('photoModal').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+        }
+
+        function closePhotoModal() {
+            document.getElementById('photoModal').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        function showCard(uniqueId, name, email) {
+            document.getElementById('miniEmployeeName').innerText = name;
+            document.getElementById('miniEmployeeEmail').innerText = email;
+            document.getElementById('miniEmployeePhoto').src = ''; // Reset photo
+            document.getElementById('generateCardButton').style.display = 'none'; // Hide button initially
+
+            // If employee photo is missing, show upload option
+            if (!document.getElementById('miniEmployeePhoto').src) {
+                document.getElementById('uploadPhotoForm').style.display = 'block';
+            }
+
+            document.getElementById('rfidCardMiniScreen').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+        }
+
+        function uploadPhoto() {
+            const photoInput = document.getElementById('photoUpload');
+            if (photoInput.files.length > 0) {
+                const file = photoInput.files[0];
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('miniEmployeePhoto').src = e.target.result;
+                    document.getElementById('generateCardButton').style.display = 'block';
+                    document.getElementById('uploadPhotoForm').style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                alert('Please select a photo.');
+            }
+        }
+
+        function generateCard() {
+            alert('Card generated successfully!');
+            // Add API logic here
+        }
+
+        function closeMiniScreen() {
+            document.getElementById('rfidCardMiniScreen').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+        }
+    </script>
+    {% endblock %}

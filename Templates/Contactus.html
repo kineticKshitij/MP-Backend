@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Contact Us{% endblock title %}
+{% block body %}
+<style>
+    body {
+        background-image: url("{% static 'bk.png' %}");
+        background-size: cover;  /* Ensures the image covers the whole page */
+        background-position: center;  /* Centers the image */
+        background-repeat: no-repeat; /* Prevents the image from repeating */
+        height: 100vh;  /* Makes sure the background covers the whole viewport */
+        margin: 0;  /* Removes default body margin */
+        color: white;  /* Adjust the text color to make it visible on the image */
+    }
+
+    .content {
+        padding: 20px;
+        background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background for readability */
+        border-radius: 10px;
+        width: 60%; /* Adjust the width of the content */
+        margin: 0 auto;
+    }
+
+    h2, h3 {
+        text-align: center;
+    }
+
+    label, textarea, button {
+        display: block;
+        margin: 10px auto;
+        width: 80%;
+    }
+</style>
+<body>
+    <div class="content">
+        <!-- Form to submit query -->
+        <h2>Submit Your Query</h2>
+        <form method="POST" action="{% url 'submit_query' %}">
+            {% csrf_token %}
+            <div>
+                <label for="query">Your Query:</label>
+                <textarea id="query" name="query" rows="4" cols="50" required></textarea>
+            </div>
+
+            <div>
+                <label for="visibility">Visibility:</label>
+                <label>
+                    <input type="radio" name="visibility" value="public" checked> Public
+                </label>
+                <label>
+                    <input type="radio" name="visibility" value="private"> Private
+                </label>
+            </div>
+
+            <button type="submit">Submit</button>
+        </form>
+
+        <!-- Display public queries -->
+        <h3>Public Queries</h3>
+        {% if public_queries %}
+            <ul>
+                {% for query in public_queries %}
+                    <li>{{ query.query }} - <em>{{ query.created_at }}</em></li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No public queries available.</p>
+        {% endif %}
+    </div>
+</body>
+{% endblock body %}

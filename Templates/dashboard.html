@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock title %}
+
+{% block body %}
+<style>
+  body {
+    background-color: #faf4ee; /* Light antiquewhite shade */
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+
+  h1 {
+    text-align: center;
+    color: #333;
+    margin-top: 20px;
+  }
+
+  .dashboard-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background-color: white;
+    border-radius: 10px;
+  }
+
+  .dashboard-options {
+    margin: 20px 0;
+    list-style-type: none;
+    padding: 0;
+  }
+
+  .dashboard-options li {
+    margin: 15px 0;
+  }
+
+  button {
+    padding: 12px 20px;
+    font-size: 16px;
+    background-color: #007acc;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+  }
+
+  button:hover {
+    background-color: #005f99;
+    transform: scale(1.05);
+  }
+
+  button:active {
+    background-color: #003f66;
+    transform: scale(0.98);
+  }
+
+  #connectButton {
+    margin-top: 20px;
+  }
+
+  #status {
+    margin-top: 15px;
+    font-size: 16px;
+    color: #555;
+  }
+
+  .messages {
+    margin: 20px auto;
+    max-width: 600px;
+  }
+
+  .alert {
+    padding: 10px 15px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+  }
+
+  .alert-success {
+    background-color: #dff0d8;
+    color: #3c763d;
+  }
+
+  .alert-error {
+    background-color: #f2dede;
+    color: #a94442;
+  }
+
+  /* Logo styling */
+  .logo {
+    max-width: 200px;
+    margin: 20px auto;
+  }
+</style>
+
+<body>
+  <div class="dashboard-container">
+    <h1>Welcome, {{ name }}</h1>
+
+    <!-- Display the organization logo -->
+    <div class="logo">
+      <img src="{{ logo }}" alt="Organization Logo">
+    </div>
+
+    <ul class="dashboard-options">
+      <li>
+        <a href="{% url 'add_employee' org_name=name %}">
+          <button>Register Employee</button>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'manage_employee' org_name=name %}">
+          <button>Manage Employee</button>
+        </a>
+      </li>
+    </ul>
+
+    <h1>Attendance Module Connection Detector</h1>
+    <button id="connectButton">Connect to Arduino</button>
+    <div id="status">Status: Not connected</div>
+
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  <script>
+    const connectButton = document.getElementById("connectButton");
+    const statusDiv = document.getElementById("status");
+
+    async function connectArduino() {
+      try {
+        // Prompt user to select a port.
+        const port = await navigator.serial.requestPort();
+
+        // Wait for the port to open.
+        await port.open({ baudRate: 9600 });
+
+        statusDiv.textContent = "Status: Arduino connected";
+        statusDiv.style.color = "green";
+
+        // Redirect to dashboard after 3 seconds
+        setTimeout(() => {
+          window.location.href = "/Operation";
+        }, 3000);
+
+        // Optionally read data from Arduino
+        const reader = port.readable.getReader();
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            break; // Exit loop if done
+          }
+          console.log("Data from Arduino: ", new TextDecoder().decode(value));
+        }
+
+        reader.releaseLock();
+      } catch (error) {
+        statusDiv.textContent = "Status: Failed to connect";
+        statusDiv.style.color = "red";
+        console.error("Error: ", error);
+      }
+    }
+
+    connectButton.addEventListener("click", connectArduino);
+  </script>
+</body>
+{% endblock %}

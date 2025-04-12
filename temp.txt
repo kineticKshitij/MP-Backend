@@ -1,0 +1,139 @@
+from django.shortcuts import render
+from Home.models import Signup, Organization
+from django.core.mail import send_mail
+from django.http import JsonResponse
+import random
+from django.contrib.auth.hashers import make_password
+import smtplib
+
+# Common utility function to generate CAPTCHA
+def generate_captcha(request):
+    num1 = random.randint(1, 10)
+    num2 = random.randint(1, 10)
+    request.session['captcha'] = num1 + num2
+    request.session['num1'] = num1
+    request.session['num2'] = num2
+    print(f"Generated CAPTCHA: {num1} + {num2} = {num1 + num2}")  # Debugging statement
+
+# Common utility function to send OTP
+def send_otp(email, otp):
+    with smtplib.SMTP("smtp.gmail.com", 587) as connection:
+        connection.starttls()
+        connection.login(user='minorproject347d@gmail.com', password='yanzzyizaomyuswn')
+        connection.sendmail(
+            from_addr='minorproject347d@gmail.com',
+            to_addrs=email,
+            msg=f"Subject:OTP Verification!\n\nYour OTP is {otp}"
+        )
+
+# Render the index page
+def index(request):
+    return render(request, 'index.html')
+
+# Render the dashboard
+def operation(request):
+    return render(request, 'dashboard.html')
+
+# Render the About us page
+def aboutus(request):
+    return render(request, 'about.html')
+
+# Render the Services page
+def services(request):
+    return render(request, 'services.html')
+
+# Render the login page and handle login process
+def login(request):
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        captcha_answer = request.POST.get('captcha_answer')
+        expected_answer = request.session.get('captcha')
+
+        print(f"Received CAPTCHA answer: {captcha_answer}, Expected: {expected_answer}")  # Debugging statement
+
+        if int(captcha_answer) == expected_answer:
+            otp = random.randint(100000, 999999)
+            print(f"OTP generated: {otp}")  # For debugging purposes; remove in production
+            request.session['otp'] = otp
+
+            try:
+                send_otp(email, otp)
+                return JsonResponse({'status': 'success', 'message': 'OTP has been sent to your email.'})
+            except Exception as e:
+                return JsonResponse({'status': 'error', 'message': f'Error sending OTP: {str(e)}'})
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Invalid CAPTCHA. Please try again.'})
+
+    generate_captcha(request)
+    return render(request, 'login.html', {
+        'num1': request.session.get('num1'),
+        'num2': request.session.get('num2')
+    })
+
+def resend_otp(request):
+    if request.method == 'POST':
+        email = request.POST.get('email')
+        otp = random.randint(100000, 999999)
+        print(f"Resending OTP: {otp}")  # For debugging purposes; remove in production
+        try:
+            send_otp(email, otp)
+            request.session['otp'] = otp
+            return JsonResponse({'status': 'success', 'message': 'OTP resent successfully'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': f'Error resending OTP: {str(e)}'})
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'})
+
+def verify_otp(request):
+    if request.method == 'POST':
+        otp = request.POST.get('otp')
+        session_otp = request.session.get('otp')
+        if otp and str(otp) == str(session_otp):
+            return JsonResponse({'status': 'success', 'message': 'OTP verified successfully.'})
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Incorrect OTP. Please try again.'})
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'})
+
+def organization_signup(request):
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        captcha_answer = request.POST.get('captcha_answer')
+        expected_answer = request.session.get('captcha')
+
+        if int(captcha_answer) == expected_answer:
+            otp = random.randint(100000, 999999)
+            request.session['otp'] = otp
+            print(otp)
+
+            try:
+                with smtplib.SMTP("smtp.gmail.com", 587) as connection:
+                    connection.starttls()
+                    connection.login(user='minorproject347d@gmail.com', password='yanzzyizaomyuswn')
+                    connection.sendmail(
+                    from_addr='minorproject347d@gmail.com',
+                    to_addrs=email,
+                    msg=f"Subject:OTP Verification!\n\nYour OTP is {otp}"
+        )
+
+                organization = Organization(
+                    name=name,
+                    email=email,
+                    password=make_password(password)
+                )
+                organization.save()
+
+                return JsonResponse({'status': 'success', 'message': 'OTP has been sent to your email.'})
+            except Exception as e:
+                return JsonResponse({'status': 'error', 'message': f'Error sending OTP: {str(e)}'})
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Invalid CAPTCHA. Please try again.'})
+
+    # This is for the initial rendering of the form with CAPTCHA
+    generate_captcha(request)
+    return render(request, 'organization_signup.html', {
+        'num1': request.session.get('num1'),
+        'num2': request.session.get('num2')
+    })

@@ -1,0 +1,172 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organization Sign-Up with CAPTCHA</title>
+    <style>
+        /* Basic styling */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color:antiquewhite;
+        }
+        main {
+            z-index: 1;
+            text-align: center;
+            background-color: rgba(74, 72, 67, 0.747);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 10px;
+            max-width: 80%;
+            width: 400px;
+            box-sizing: border-box;
+        }
+        h1 {
+            color: azure;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        input[type="text"], input[type="email"], input[type="password"] {
+            padding: 10px 2px;
+            margin: 10px 0;
+            font-size: 16px;
+            width: 100%;
+            border-radius: 5px;
+            border: none;
+            text-align: center;
+        }
+        button, input[type="submit"] {
+            padding: 10px 10px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: none;
+            background-color: #00aaff;
+            color: white;
+        }
+        .captcha-box {
+            margin: 20px;
+            font-size: 20px;
+            color: white;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .success {
+            color: green;
+            margin-top: 10px;
+        }
+
+        .otp-section {
+            display: none; /* Removed OTP section */
+            padding: 10px;
+        }
+        .otp-timer, .resend-button {
+            color: white;
+            margin-top: 10px;
+        }
+        .otp-message {
+            color: lightgreen;
+            margin-top: 10px;
+        }
+        #otpInput {
+            display: block;
+            width: 100%;
+            height: 40px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+    <main><h1>Welcome to the sign-up page for:
+    </br><i> {{ org_name }}</i></h1>
+
+        <!-- Organization Sign-Up Form -->
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div>
+                <label for="name">Name:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            
+            <div>
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            
+            <div>
+                <label for="photo">Employee Photo:</label>
+                <input type="file" id="photo" name="photo" accept="image/*" required>
+            </div>
+            
+            <div>
+                <label for="num1">CAPTCHA: {{ num1 }} + {{ num2 }} =</label>
+                <input type="text" id="captcha_answer" name="captcha_answer" required>
+                <input type="hidden" name="num1" value="{{ num1 }}">
+                <input type="hidden" name="num2" value="{{ num2 }}">
+            </div>
+            
+            <button type="submit">Add Employee</button>
+        </form>
+        
+        
+        
+    </main>
+
+    <script>
+        // Initialize CAPTCHA variables
+        let num1 = {{ num1 }};
+        let num2 = {{ num2 }};
+        let correctAnswer = num1 + num2;
+    
+        // Function to validate CAPTCHA and prevent form submission if incorrect
+        function validateForm(event) {
+            const userAnswer = parseInt(document.getElementById("captchaInput").value);
+            const messageDiv = document.getElementById("captchaMessage");
+    
+            // Validate CAPTCHA answer
+            if (userAnswer === correctAnswer) {
+                messageDiv.textContent = "CAPTCHA verified!";
+                messageDiv.className = "success";
+                return true;  // Allow form submission
+            } else {
+                messageDiv.textContent = "Incorrect CAPTCHA answer!";
+                messageDiv.className = "error";
+                event.preventDefault();  // Prevent form submission
+                return false;
+            }
+        }
+    
+        // Function to regenerate a new CAPTCHA
+        function regenerateCaptcha() {
+            num1 = Math.floor(Math.random() * 10) + 1;
+            num2 = Math.floor(Math.random() * 10) + 1;
+            correctAnswer = num1 + num2;
+            document.getElementById("num1").textContent = num1;
+            document.getElementById("num2").textContent = num2;
+            document.getElementById("captchaInput").value = "";
+            document.getElementById("captchaMessage").textContent = "";
+        }
+    
+        // Attach validateForm function to form submission
+        document.getElementById('EmployeeForm').addEventListener('submit', function(event) {
+            validateForm(event);
+        });
+    </script>
+    
+</body>
+</html>
