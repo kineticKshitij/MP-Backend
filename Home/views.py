@@ -25,7 +25,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from calendar import monthrange
 from pymongo import MongoClient
 from .models import Organization, EmployeeSignup, Query, Attendance
-from .serializers import OrganizationSerializer, EmployeeSerializer, ContactQuerySerializer
+from .serializers import OrganizationSerializer, EmployeeSerializer, ContactQuerySerializer, AttendanceSerializer
 import calendar
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -91,11 +91,10 @@ if hasattr(settings, 'EMAIL_HOST_USER') and settings.EMAIL_HOST_USER:
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @parser_classes([JSONParser])
-def receive_rfid(request):
-    """API endpoint to receive RFID card UID and mark attendance."""
+def receive_rfid(request):  
+    """Return employee details with attendance recorded if card_uid is associated; otherwise, return invalid card."""
     try:
-        # Parse JSON data
-        data = json.loads(request.body.decode('utf-8'))
+        data = request.data
         logger.info(f"🔍 Received RFID data: {data}")
 
         # Validate card_uid
@@ -107,76 +106,36 @@ def receive_rfid(request):
             }, status=status.HTTP_400_BAD_REQUEST)
         print("Card_UID==>", card_uid)
         
-        # Use pymongo directly
-        from pymongo import MongoClient
-        client = MongoClient('mongodb://localhost:27017/')
-        db = client['minor_project_db']
-        
-        # Find employee using MongoDB query
-        employee_data = db.Home_employeesignup.find_one({
-            'rfid': card_uid,
-            'is_active': True
-        })
-
-        if not employee_data:
-            client.close()
+        # Find the employee using the model's helper
+        employee = EmployeeSignup.find_by_rfid(card_uid)
+        if not employee:
             return Response({
                 "status": "error",
                 "message": "Invalid card"
             }, status=status.HTTP_404_NOT_FOUND)
-
-        # Use a unified identifier: if unique_id exists, use it; otherwise, fallback to _id
-        employee_identifier = employee_data.get('unique_id', employee_data['_id'])
-
-        # Check for existing attendance
-        today = timezone.localtime().date().strftime('%Y-%m-%d')
-        existing = db.Home_attendance.find_one({
-            'employee_id': employee_identifier,
-            'date': today
-        })
-
-        if existing:
-            client.close()
-            return Response({
-                "status": "error",
-                "message": "Already marked",
-                "data": {
-                    "employee_name": employee_data['name'],
-                    "timestamp": existing.get('timestamp')
-                }
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        # Create attendance record using the employee's unique_id as primary key
-        now = timezone.now()
-        attendance_data = {
-            'employee_id': employee_identifier,
-            'status': 'P',
-            'timestamp': now.strftime('%H:%M:%S'),
-            'date': today
-        }
         
-        db.Home_attendance.insert_one(attendance_data)
-        client.close()
-
-        # Add to email notification queue
-        with attendance_lock:
-            attendance_records.append({
-                "name": employee_data['name'],
-                "employee_id": employee_identifier,
-                "timestamp": now.strftime("%H:%M:%S"),
-                "organization_email": employee_data['email']
-            })
-
+        # Record attendance for the employee
+        attendance, created = Attendance.mark_attendance(employee, status='P')
+        
+        # Prepare employee details to return, including attendance info.
+        employee_data = {
+            "id": employee.id,
+            "name": employee.name,
+            "email": employee.email,
+            "rfid": employee.rfid,
+            "attendance": {
+                "date": attendance.date,
+                "check_in": attendance.check_in,
+                "check_out": attendance.check_out,
+                "status": attendance.get_status_display() if attendance.status else None,
+            }
+        }
         return Response({
             "status": "success",
-            "message": f"Welcome {employee_data['name']}",
-            "data": {
-                "employee_name": employee_data['name'],
-                "employee_id": employee_identifier,
-                "timestamp": now.strftime('%H:%M:%S')
-            }
+            "message": "Employee found and attendance recorded",
+            "employee": employee_data
         }, status=status.HTTP_200_OK)
-
+        
     except Exception as e:
         logger.exception(f"⚠️ RFID processing error: {str(e)}")
         return Response({
@@ -184,6 +143,7 @@ def receive_rfid(request):
             "message": "System error",
             "debug_info": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 # Render index page
 def index(request):
@@ -211,28 +171,6 @@ def validate_credentials(data):
     if not email or not password:
         return "Email and password are required"
     return None
-
-def get_attendance_table(start_date, end_date):
-    """
-    Generates an attendance table for a given date range.
-    :param start_date: Start date of the range
-    :param end_date: End date of the range
-    :return: A dictionary with employee names as keys and attendance records as values
-    """
-    employees = EmployeeSignup.objects.all()
-    date_range = [start_date + timedelta(days=i) for i in range((end_date - start_date).days + 1)]
-    attendance_table = {}
-
-    for employee in employees:
-        attendance_table[employee.name] = []
-        for day in date_range:
-            attendance = Attendance.objects.filter(employee=employee, date=day).first()
-            if attendance:
-                attendance_table[employee.name].append(attendance.timestamp if attendance.status == 'P' else attendance.get_status_display())
-            else:
-                attendance_table[employee.name].append('A')  # Default to Absent if no record exists
-
-    return attendance_table
 
 # ---------------------------
 # Organization Endpoints
@@ -443,30 +381,65 @@ def employee_dashboard(request):
         return Response({'error': 'Failed to load dashboard. Please try again.'},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+from datetime import date, timedelta
+
+from .serializers import AttendanceSerializer
+
+from datetime import date
+from calendar import monthrange
+from .serializers import AttendanceSerializer
+from rest_framework.response import Response
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_monthly_attendance(request, year, month):
-    # Get all employees for the organization
     employees = EmployeeSignup.objects.filter(organization=request.user)
-    logger.info(f"Found {employees.count()} employees for the organization")
-    for emp in employees:
-        logger.info(f"Employee: {emp.unique_id} - {emp.name}")
+    year_int = int(year)
+    month_int = int(month)
+    _, days_in_month = monthrange(year_int, month_int)
+    start_date_obj = date(year_int, month_int, 1)
+    end_date_obj = date(year_int, month_int, days_in_month)
 
-    # Get the number of days in the month using local date
-    _, days_in_month = monthrange(int(year), int(month))
-    start_date = f"{year}-{month:02d}-01"
-    end_date = f"{year}-{month:02d}-{days_in_month}"
-    logger.info(f"Date range: {start_date} to {end_date}")
-
-    # Query attendance records
     attendance_records = Attendance.objects.filter(
         employee__in=employees,
-        date__range=[start_date, end_date]
-    ).values('employee__unique_id', 'date', 'status')
+        date__range=[start_date_obj, end_date_obj]
+    )
+    serializer = AttendanceSerializer(attendance_records, many=True)
+    # print("Attendance Records==>", serializer.data)
+    return Response(serializer.data)
 
-    logger.info(f"Attendance records count: {attendance_records.count()}")
-    print("Attendance records:", attendance_records)
-    return Response(attendance_records)
+
+
+def get_attendance_table(start_date, end_date):
+
+
+    """
+    Generates an attendance table for a given date range using DailyAttendance.
+    The table is a dictionary with employee names as keys and lists of attendance values as values.
+    """
+    # Ensure start_date and end_date are date objects.
+    employees = EmployeeSignup.objects.all()
+    total_days = (end_date - start_date).days + 1
+    date_range = [start_date + timedelta(days=i) for i in range(total_days)]
+    attendance_table = {}
+    
+    for employee in employees:
+        attendance_table[employee.name] = []
+        for day in date_range:
+            attendance = DailyAttendance.objects.filter(employee=employee, date=day).first()
+            if attendance:
+                # If status is 'Present' and check_in is set, show check_in time; otherwise, show the status label.
+                value = (attendance.check_in.strftime('%H:%M:%S')
+                         if attendance.status == 'P' and attendance.check_in
+                         else attendance.get_status_display())
+                attendance_table[employee.name].append(value)
+            else:
+                attendance_table[employee.name].append('A')  # Default to Absent if no record exists
+
+    return attendance_table
+
 
 
 
@@ -682,3 +655,93 @@ def get_server_time(request):
         'timezone': settings.TIME_ZONE
     })
     
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_employee_attendance(request, employee_id, status_):
+    """
+    Mark attendance for an employee using the provided status.
+    Allowed status values: 'P' (Present), 'A' (Absent), 'L' (Leave), 'H' (Half Day).
+    Endpoint: /api/emp/attendance/mark/<employee_id>/<status_>/
+    """
+    try:
+        # Validate provided status
+        if status_ not in ['P', 'A', 'L', 'H']:
+            return Response({
+                "status": "error",
+                "message": "Invalid attendance status. Allowed values: 'P', 'A', 'L', 'H'."
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        from .models import EmployeeSignup, Attendance
+        
+        # Fetch the employee by ID
+        employee = EmployeeSignup.objects.get(id=employee_id)
+        
+        # Mark attendance using the helper method on Attendance model.
+        # (Ensure your Attendance.mark_attendance method supports the "H" status.)
+        attendance, created = Attendance.mark_attendance(employee, status=status_)
+        
+        from .serializers import AttendanceSerializer
+        serializer = AttendanceSerializer(attendance)
+        
+        return Response({
+            "status": "success",
+            "message": "Attendance marked successfully",
+            "attendance": serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    except EmployeeSignup.DoesNotExist:
+        return Response({
+            "status": "error",
+            "message": "Employee not found"
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    except Exception as e:
+        logger.exception(f"Error marking attendance: {str(e)}")
+        return Response({
+            "status": "error",
+            "message": "Failed to mark attendance",
+            "error": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    """
+    Mark attendance for an employee using the provided status.
+    Allowed status values: 'P' (Present), 'A' (Absent), 'L' (Leave).
+    Endpoint: /api/emp/attendance/mark/<employee_id>/<status>/
+    """
+    try:
+        # Validate provided status
+        if status_ not in ['P', 'A', 'L']:
+            return Response({
+                "status": "error",
+                "message": "Invalid attendance status. Allowed values: 'P', 'A', 'L'."
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        from .models import EmployeeSignup, Attendance
+        
+        # Fetch the employee by ID
+        employee = EmployeeSignup.objects.get(id=employee_id)
+        
+        # Mark attendance using the helper method on Attendance model
+        attendance, created = Attendance.mark_attendance(employee, status=status_)
+        
+        from .serializers import AttendanceSerializer
+        serializer = AttendanceSerializer(attendance)
+        
+        return Response({
+            "status": "success",
+            "message": "Attendance marked successfully",
+            "attendance": serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    except EmployeeSignup.DoesNotExist:
+        return Response({
+            "status": "error",
+            "message": "Employee not found"
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    except Exception as e:
+        logger.exception(f"Error marking attendance: {str(e)}")
+        return Response({
+            "status": "error",
+            "message": "Failed to mark attendance",
+            "error": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -1,4 +1,4 @@
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework_simplejwt.views import (
@@ -17,6 +17,7 @@ from .views import (
     add_employee, 
     manage_employees, 
     remove_employee,
+    mark_employee_attendance,
     
     # Query views
     submit_query, 
@@ -43,6 +44,7 @@ employee_patterns = [
     path('manage/', manage_employees, name='manage_employees'),
     path('remove/<int:employee_id>/', remove_employee, name='remove_employee'),
     path("attendance/monthly/<int:year>/<int:month>/", get_monthly_attendance, name="get_monthly_attendance"),
+    path("attendance/mark/<int:employee_id>/<str:status_>/", mark_employee_attendance, name="mark_employee_attendance"),
 ]
 
 query_patterns = [
@@ -50,9 +52,6 @@ query_patterns = [
     path('public/', get_public_queries, name='get_public_queries'),
 ]
 
-rfid_patterns = [
-    path('scan/', receive_rfid, name='receive_rfid'),
-]
 
 urlpatterns = [
     # JWT endpoints
@@ -63,7 +62,8 @@ urlpatterns = [
     path('api/org/', include(organization_patterns)),
     path('api/emp/', include(employee_patterns)),
     path('api/query/', include(query_patterns)),
-    path('api/rfid/', include(rfid_patterns)),
+    path('api/rfid/scan/', receive_rfid, name='receive_rfid'),
+    re_path(r'^api/rfid/scan$', receive_rfid),
     path("api/time/", get_server_time, name="get_server_time"),
     # Root index view
     path('', index, name='index'),
