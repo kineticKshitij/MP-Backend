@@ -116,6 +116,12 @@ def receive_rfid(request):
         
         # Record attendance for the employee
         attendance, created = Attendance.mark_attendance(employee, status='P')
+
+        # Print whether this is a check-in or a check-out
+        if created:
+            print("checkin")
+        else:
+            print("checkout")
         
         # Prepare employee details to return, including attendance info.
         employee_data = {

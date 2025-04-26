@@ -30,9 +30,11 @@ class AttendanceSerializer(serializers.ModelSerializer):
     employee_name = serializers.CharField(source="employee.name")
     # Format check_in to a simple time string (use your preferred format)
     check_in = serializers.DateTimeField(format="%H:%M:%S", required=False, allow_null=True)
+    check_out = serializers.DateTimeField(format="%H:%M:%S", required=False, allow_null=True)
+    # Status is a choice field, so we can use the default representation
     # Format date as YYYY-MM-DD
     date = serializers.DateField(format="%Y-%m-%d")
     
     class Meta:
         model = Attendance
-        fields = ["employee_unique_id", "employee_name", "check_in", "date", "status"]
+        fields = ["employee_unique_id", "employee_name", "check_in", "check_out", "date", "status"]
